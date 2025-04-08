@@ -2,10 +2,16 @@
 title: "project3"
 ---
 
-## Quarto
+Who is doing what research question:
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+Tiannah - During which time period did hospitalizations peak and how have recovery rates changed over time?
 
-```{r}
-1 + 1
-```
+Ruixin - Which countries had the highest cumulative deaths?
+
+Ethan - What is the relationship between positivity and testing rates across different regions and how does this relationship change throughout phases of the pandemic
+
+? - Is there a relationship between hospitalization lag with identification of positive COVID cases, and how does this lag correlate with healthcare infrastructure of a given region
+
+? - To what extent does geolocation contribute to the trajectories of COVID cases in a specific region. Do neighboring countries exhibit similar trends and what factors contribute to these patterns.
+
+? - Make slides, 1 for each question
