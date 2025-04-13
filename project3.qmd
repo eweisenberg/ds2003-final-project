@@ -12,7 +12,7 @@ Ethan - What is the relationship between positivity and testing rates across dif
 
 Ashley - How do hospitalization rates compare across countries?
 
-? - Is there a relationship between hospitalization lag with identification of positive COVID cases, and how does this lag correlate with healthcare infrastructure of a given region
+Kevin - Is there a relationship between hospitalization lag with identification of positive COVID cases, and how does this lag correlate with healthcare infrastructure of a given region
 
 ? - To what extent does geolocation contribute to the trajectories of COVID cases in a specific region. Do neighboring countries exhibit similar trends and what factors contribute to these patterns.
 
