@@ -17,3 +17,46 @@ Kevin - Is there a relationship between hospitalization lag with identification 
 ? - To what extent does geolocation contribute to the trajectories of COVID cases in a specific region. Do neighboring countries exhibit similar trends and what factors contribute to these patterns.
 
 ? - Make slides, 1 for each question
+
+```{r}
+library(ggplot2)
+library(plotly)
+library(dplyr)
+
+covid_data <- read.csv("tested_worldwide.csv") %>% 
+  mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+```
+
+```{r}
+daily_positive_tested <- covid_data %>%  
+  group_by(Country_Region) %>% 
+  summarize(
+    avg_positive = mean(daily_positive, na.rm = TRUE),
+    avg_tested = mean(daily_tested, na.rm = TRUE)
+  )
+
+positive_tested_chart <- ggplot(
+  daily_positive_tested %>%
+    filter(
+      !is.na(avg_positive) & !is.na(avg_tested),
+      avg_positive > 0,
+      avg_tested > 0
+    ),
+  mapping = aes(
+    x = avg_positive,
+    y = avg_tested,
+    text = paste("Country:", Country_Region)
+  )) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    title = "Average Daily Positive Cases vs Quantity of Testing",
+    x = "Average Daily Positive Cases",
+    y = "Average Daily Quantity of Tests"
+  ) +
+  theme_minimal()
+
+positive_tested_interactive <- ggplotly(positive_tested_chart)
+positive_tested_interactive
+```
