@@ -1,53 +1,84 @@
-library(shiny)
+
 library(plotly)
 library(dplyr)
 library(readr)
 
 
-
-
-
 death_data <- read.csv("tested_worldwide.csv") %>%
   mutate(Date = as.Date(Date),
-         death = as.numeric(death)) %>%   
+         death = as.numeric(death)) %>%
   filter(!is.na(death))
 
-ui <- fluidPage(
-  titlePanel("Total Deaths Across Countries"),
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("country", "Select country:",
-                  choices = unique(death_data$Country_Region),
-                  selected = unique(death_data$Country_Region),
-                  multiple = TRUE),
-      dateRangeInput("date_range", "Select date range:",
-                     start = min(death_data$Date),
-                     end = max(death_data$Date))
-    ),
-    mainPanel(
-      plotlyOutput("death_plot")
-    )
-  )
-)
 
-server <- function(input, output) {
-  filtered_data <- reactive({
-    death_data %>%
-      filter(Country_Region %in% input$country,
-             Date >= input$date_range[1],
-             Date <= input$date_range[2]) %>%
-      group_by(Date, Country_Region) %>%
-      summarise(total_death = sum(death, na.rm = TRUE), .groups = "drop")
-  })
+countries <- unique(death_data$Country_Region)
+n <- length(countries)
 
-  output$death_plot <- renderPlotly({
-    plot_ly(filtered_data(), x = ~Date, y = ~total_death, color = ~Country_Region,
-            type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Total Deaths Over Time",
-             xaxis = list(title = "Date"),
-             yaxis = list(title = "Total Deaths"),
-             hovermode = "compare")
-  })
+
+colors <- setNames(rainbow(n), countries)
+
+
+p <- plot_ly()
+
+
+for (i in seq_along(countries)) {
+  country <- countries[i]
+  df <- death_data %>% filter(Country_Region == country)
+  
+  p <- add_trace(p,
+                 data = df,
+                 x = ~Date,
+                 y = ~death,
+                 type = 'scatter',
+                 mode = 'markers',
+                 name = country,
+                 marker = list(color = colors[[country]]),
+                 text = ~paste("Country:", Country_Region,
+                               "<br>Date:", Date,
+                               "<br>Deaths:", death),
+                 hoverinfo = "text",
+                 visible = TRUE) 
 }
 
-shinyApp(ui = ui, server = server)
+
+checkbox_buttons <- list(
+  list(method = "restyle",
+       args = list("visible", as.list(rep(TRUE, n))),
+       label = "Select All"),
+  list(method = "restyle",
+       args = list("visible", as.list(rep(FALSE, n))),
+       label = "Deselect All")
+)
+
+
+for (i in seq_along(countries)) {
+  vis <- rep(FALSE, n)
+  vis[i] <- TRUE
+  checkbox_buttons[[length(checkbox_buttons) + 1]] <- list(
+    method = "restyle",
+    args = list("visible", as.list(vis)),
+    label = countries[i]
+  )
+}
+
+
+p <- layout(p,
+            title = "COVID Deaths Over Time",
+            xaxis = list(title = "Date"),
+            yaxis = list(title = "Cumulative_Deaths"),
+           updatemenus = list(
+  list(
+    type = "dropdown",
+    active = -1,
+    buttons = checkbox_buttons,
+    x = 0,
+    y = 1,
+    xanchor = "left",
+    yanchor = "top"
+  )
+)
+)
+
+p
+
+
+
