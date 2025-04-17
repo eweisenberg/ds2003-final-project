@@ -1,0 +1,4 @@
+- source: project3.qmd
+  quarto-pub:
+    - id: f5817bec-2471-4076-a61a-51e8d6014661
+      url: 'https://eweisenberg.quarto.pub/covid-19-dashboard'

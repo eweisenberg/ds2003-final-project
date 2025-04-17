@@ -1,33 +1,24 @@
 ---
-title: "project3"
+title: "COVID-19 Dashboard"
+format:
+  dashboard:
+    orientation: columns
 ---
 
-Who is doing what research question:
-
-Tiannah - During which time period did hospitalizations peak and how have recovery rates changed over time?
-
-Ruixin - Which countries had the highest cumulative deaths?
-
-Ethan - What is the relationship between positivity and testing rates across different regions and how does this relationship change throughout phases of the pandemic
-
-Ashley - How do hospitalization rates compare across time and across countries?
-
-Kevin - Is there a relationship between hospitalization lag with identification of positive COVID cases, and how does this lag correlate with healthcare infrastructure of a given region
-
-? - To what extent does geolocation contribute to the trajectories of COVID cases in a specific region. Do neighboring countries exhibit similar trends and what factors contribute to these patterns.
-
-? - Make slides, 1 for each question
-
-```{r}
+```{r load-packages}
 library(ggplot2)
 library(plotly)
 library(dplyr)
+```
+
+## Column 1 {width="60%"}
+
+```{r}
+#| title: Average Daily Positive Cases vs Quantity of Testing
 
 covid_data <- read.csv("tested_worldwide.csv") %>% 
   mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
-```
 
-```{r}
 daily_positive_tested <- covid_data %>%  
   group_by(Country_Region) %>% 
   summarize(
@@ -47,7 +38,6 @@ positive_tested_chart <- ggplot(
   mapping = aes(
     x = avg_positive,
     y = avg_tested,
-    size = positive_rate,
     color = positive_rate,
     text = paste("Country:", Country_Region)
   )) +
@@ -55,10 +45,9 @@ positive_tested_chart <- ggplot(
   scale_x_log10() +
   scale_y_log10() +
   labs(
-    title = "Average Daily Positive Cases vs Quantity of Testing",
     x = "Average Daily Positive Cases",
     y = "Average Daily Quantity of Tests",
-    color = "positivity rate"
+    color = "Positivity Rate"
   ) +
   theme_minimal()
 
@@ -66,53 +55,95 @@ positive_tested_interactive <- ggplotly(positive_tested_chart)
 positive_tested_interactive
 ```
 
-# Q2: How do hospitalization rates compare across time and across countries?
-library(shiny)
-library(plotly)
-library(dplyr)
-library(readr)
+## Column 2 {width="40%"}
 
-hospital_data <- read_csv("tested_worldwide.csv") %>%
+```{r}
+#| title: Percent of Population Hospitalized Over Time
+
+hospital_data <- read.csv("tested_worldwide.csv") %>%
   mutate(
     Date = as.Date(Date),
-    hospitalizedCurr = as.numeric(hospitalizedCurr))
+    hospitalizedCurr = as.numeric(hospitalizedCurr)
+  ) %>%
+  filter(!is.na(hospitalizedCurr)) %>%
+  group_by(Date, Country_Region) %>%
+  summarise(current_hospitalized = sum(hospitalizedCurr, na.rm = TRUE), .groups = "drop")
 
-hospital_data <- hospital_data %>% filter(!is.na(hospitalizedCurr))
+population_data <- read.csv("world_population.csv") %>%
+  select(Country = Country.Territory, Population2020 = X2020.Population) %>%
+  mutate(Population2020 = as.numeric(gsub(",", "", Population2020)))
 
-ui <- fluidPage(
-  titlePanel("Current Hospitalizations Across Countries"),
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("country", "Select country:",
-                  choices = unique(hospital_data$Country_Region),
-                  selected = unique(hospital_data$Country_Region),
-                  multiple = TRUE),
-      dateRangeInput("date_range", "Select date range:",
-                     start = min(hospital_data$Date),
-                     end = max(hospital_data$Date))
-    ),
-    mainPanel(
-      plotlyOutput("hospital_plot")
-    )))
+merged_data <- hospital_data %>%
+  left_join(population_data, by = c("Country_Region" = "Country")) %>%
+  filter(!is.na(Population2020)) %>%
+  mutate(hospitalized_pct = (current_hospitalized / Population2020) * 100) %>% 
+  filter(!Country_Region %in% c("Armenia", "Singapore"))
+# Armenia and Singapore had invalid data
 
-server <- function(input, output) {
-  filtered_data <- reactive({
-    hospital_data %>%
-      filter(Country_Region %in% input$country,
-             Date >= input$date_range[1],
-             Date <= input$date_range[2]) %>%
-      group_by(Date, Country_Region) %>%
-      summarise(current_hospitalized = sum(hospitalizedCurr, na.rm = TRUE), .groups = "drop")
-  })
-  
-  output$hospital_plot <- renderPlotly({
-    plot_ly(filtered_data(), x = ~Date, y = ~current_hospitalized, color = ~Country_Region,
-            type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Currently Hospitalized Patients Over Time",
-             xaxis = list(title = "Date"),
-             yaxis = list(title = "Currently Hospitalized"),
-             hovermode = "compare")
-  })
+countries <- unique(merged_data$Country_Region)
+
+hosp_interactive <- plot_ly()
+
+for (country in countries) {
+  country_data <- merged_data %>% filter(Country_Region == country)
+  hosp_interactive <- hosp_interactive %>%
+    add_trace(
+      x = country_data$Date,
+      y = country_data$hospitalized_pct,
+      type = "scatter",
+      mode = "lines+markers",
+      name = country
+    )
 }
 
-shinyApp(ui = ui, server = server)
+hosp_interactive <- hosp_interactive %>%
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Hospitalizations (Percent of Population)"),
+    hovermode = "compare"
+  )
+
+hosp_interactive
+```
+
+```{r}
+#| title: Cumulative Deaths Over Time
+
+death_data <- read.csv("tested_worldwide.csv") %>%
+  mutate(
+    Date = as.Date(Date),
+    death = as.numeric(death)
+  ) %>%
+  filter(!is.na(death)) %>%
+  filter(!Country_Region %in% "Canada") %>% 
+  group_by(Date, Country_Region) %>%
+  summarise(death = sum(death, na.rm = TRUE), .groups = "drop")
+
+countries <- unique(death_data$Country_Region)
+
+deaths_interactive <- plot_ly()
+
+for (country in countries) {
+  df <- death_data %>% filter(Country_Region == country)
+  
+  deaths_interactive <- add_trace(deaths_interactive,
+                 data = df,
+                 x = ~Date,
+                 y = ~death,
+                 type = 'scatter',
+                 mode = 'lines+markers',
+                 name = country,
+                 text = ~paste("Country:", Country_Region,
+                               "<br>Date:", Date,
+                               "<br>Deaths:", death),
+                 hoverinfo = "text")
+}
+
+deaths_interactive <- layout(deaths_interactive,
+            title = "COVID Deaths Over Time",
+            xaxis = list(title = "Date"),
+            yaxis = list(title = "Cumulative Deaths"),
+            hovermode = "compare")
+
+deaths_interactive
+```
