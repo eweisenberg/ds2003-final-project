@@ -6,12 +6,27 @@ library(readr)
 hospital_data <- read_csv("tested_worldwide.csv") %>%
   mutate(
     Date = as.Date(Date),
-    hospitalizedCurr = as.numeric(hospitalizedCurr))
+    hospitalizedCurr = as.numeric(hospitalizedCurr)
+  ) %>%
+  filter(!is.na(hospitalizedCurr))
 
-hospital_data <- hospital_data %>% filter(!is.na(hospitalizedCurr))
+population_data <- read_csv("population_by_country_2020.csv") %>%
+  select(`Country (or dependency)`, `Population (2020)`) %>%
+  rename(
+    Country_Region = `Country (or dependency)`,
+    Population = `Population (2020)`
+  ) %>%
+  mutate(
+    Country_Region = trimws(Country_Region),
+    Population = as.numeric(gsub(",", "", Population))
+  )
+
+hospital_data <- left_join(hospital_data, population_data, by = "Country_Region") %>%
+  filter(!is.na(Population)) %>%
+  mutate(hospitalized_per_capita = hospitalizedCurr / Population)  
 
 ui <- fluidPage(
-  titlePanel("Current Hospitalizations Across Countries"),
+  titlePanel("Current Hospitalizations per Capita Across Countries Over Time"),  
   sidebarLayout(
     sidebarPanel(
       selectInput("country", "Select country:",
@@ -24,7 +39,9 @@ ui <- fluidPage(
     ),
     mainPanel(
       plotlyOutput("hospital_plot")
-    )))
+    )
+  )
+)
 
 server <- function(input, output) {
   filtered_data <- reactive({
@@ -33,15 +50,15 @@ server <- function(input, output) {
              Date >= input$date_range[1],
              Date <= input$date_range[2]) %>%
       group_by(Date, Country_Region) %>%
-      summarise(current_hospitalized = sum(hospitalizedCurr, na.rm = TRUE), .groups = "drop")
+      summarise(hospitalized_per_capita = sum(hospitalized_per_capita, na.rm = TRUE), .groups = "drop")
   })
   
   output$hospital_plot <- renderPlotly({
-    plot_ly(filtered_data(), x = ~Date, y = ~current_hospitalized, color = ~Country_Region,
+    plot_ly(filtered_data(), x = ~Date, y = ~hospitalized_per_capita, color = ~Country_Region,
             type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Currently Hospitalized Patients Over Time",
+      layout(title = "Hospitalizations per Capita Over Time",  
              xaxis = list(title = "Date"),
-             yaxis = list(title = "Currently Hospitalized"),
+             yaxis = list(title = "Hospitalizations per Capita"),
              hovermode = "compare")
   })
 }
