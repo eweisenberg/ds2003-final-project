@@ -1,0 +1,13 @@
+Overview of the dataset:
+The dataset we are using for Project 3 is titled “COVID19 Worldwide Testing Data” and found here: https://www.kaggle.com/datasets/lin0li/covid19testing. This dataset contains information about the number of positive cases, hospitalizations, and deaths – daily and cumulatively – across different countries between 1/15/2020 and 11/8/2020. The dataset has 12 columns and 27641 rows. However, several rows are incomplete (ex. missing hospital, testing, and death data), and the dataset only includes 100 countries. It is also important to remember that the absence of testing does not mean the absence of COVID
+
+Project goals:
+Our project focuses on testing, hospitalizations, and deaths. Specifically, we wanted to answer the questions
+1. What is the relationship between positivity and testing rates?
+2. How did hospitalizations as the a percent of the population change across time for each country?
+3. How did cumulative deaths change across time for each country?
+
+Key insights:
+1. From the countries included in the dataset, there is a positive correlation between average daily positive cases and average daily quantity of tests
+2. Percent hospitalized varied greatly across the 8 countries with valid data, but there were noticeable spikes in hospitalizations around April 2020 and Nov 2020
+3. Of the 24 countries with valid cumulative death data, the United States has a significantly high death toll
