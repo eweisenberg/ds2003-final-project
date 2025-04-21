@@ -172,10 +172,11 @@ interactive_plot
 hospital_data <- read.csv("tested_worldwide.csv") %>%
   mutate(
     Date = as.Date(Date),
-    hospitalizedCurr = as.numeric(hospitalizedCurr)
+    hospitalizedCurr = as.numeric(hospitalizedCurr),
+    Month = format(Date, "%Y-%m")
   ) %>%
   filter(!is.na(hospitalizedCurr)) %>%
-  group_by(Date, Country_Region) %>%
+  group_by(Date, Month, Country_Region) %>%
   summarise(current_hospitalized = sum(hospitalizedCurr, na.rm = TRUE), .groups = "drop")
 
 population_data <- read.csv("world_population.csv") %>%
@@ -187,32 +188,69 @@ merged_data <- hospital_data %>%
   filter(!is.na(Population2020)) %>%
   mutate(hospitalized_pct = (current_hospitalized / Population2020) * 100) %>% 
   filter(!Country_Region %in% c("Armenia", "Singapore"))
-# Armenia and Singapore had invalid data
 
+months <- sort(unique(merged_data$Month))
 countries <- unique(merged_data$Country_Region)
 
 hosp_interactive <- plot_ly()
+trace_count <- 0
+for (month in months) {
+  for (country in countries) {
+    country_data <- merged_data %>%
+      filter(Country_Region == country, Month == month)
+    
+    hosp_interactive <- hosp_interactive %>%
+      add_trace(
+        x = country_data$Date,
+        y = country_data$hospitalized_pct,
+        type = "scatter",
+        mode = "lines+markers",
+        name = country,
+        visible = ifelse(month == months[1], TRUE, FALSE)
+      )
+    trace_count <- trace_count + 1
+  }
+}
 
-for (country in countries) {
-  country_data <- merged_data %>% filter(Country_Region == country)
-  hosp_interactive <- hosp_interactive %>%
-    add_trace(
-      x = country_data$Date,
-      y = country_data$hospitalized_pct,
-      type = "scatter",
-      mode = "lines+markers",
-      name = country
-    )
+dropdown_buttons <- list()
+
+dropdown_buttons[[1]] <- list(
+  method = "restyle",
+  args = list("visible", rep(TRUE, trace_count)),
+  label = "All Months"
+)
+
+for (i in seq_along(months)) {
+  vis <- rep(FALSE, trace_count)
+  vis[((i - 1) * length(countries) + 1):(i * length(countries))] <- TRUE
+  dropdown_buttons[[i + 1]] <- list(
+    method = "restyle",
+    args = list("visible", vis),
+    label = months[i]
+  )
 }
 
 hosp_interactive <- hosp_interactive %>%
   layout(
+    title = "Percent of Population Hospitalized Over Time",
     xaxis = list(title = "Date"),
     yaxis = list(title = "Hospitalizations (Percent of Population)"),
-    hovermode = "compare"
+    hovermode = "compare",
+    updatemenus = list(
+      list(
+        buttons = dropdown_buttons,
+        direction = "down",
+        showactive = TRUE,
+        x = 0,       # Move to left
+        y = 1.2,     # Move to top
+        xanchor = "left",
+        yanchor = "top"
+      )
+    )
   )
 
 hosp_interactive
+
 ```
 
 ```{r}
