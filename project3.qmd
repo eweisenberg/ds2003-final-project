@@ -17,42 +17,149 @@ library(dplyr)
 #| title: Average Daily Positive Cases vs Quantity of Testing
 
 covid_data <- read.csv("tested_worldwide.csv") %>% 
-  mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+  mutate(Date = as.Date(Date, format = "%Y-%m-%d"), 
+  Month = format(Date, "%Y-%m")) %>% 
+  filter(!is.na(Date))
+
+unique_months <- sort(unique(covid_data$Month))
 
 daily_positive_tested <- covid_data %>%  
-  group_by(Country_Region) %>% 
+  group_by(Country_Region, Month) %>% 
   summarize(
     avg_positive = mean(daily_positive, na.rm = TRUE),
     avg_tested = mean(daily_tested, na.rm = TRUE),
-    positive_rate = avg_positive/avg_tested
-  )
-
-positive_tested_chart <- ggplot(
-  daily_positive_tested %>%
-    filter(
-      !is.na(avg_positive) & !is.na(avg_tested) & !is.na(positive_rate),
+    positive_rate = avg_positive/avg_tested,
+    .groups = "drop"
+  ) %>% 
+  filter(!is.na(avg_positive) & !is.na(avg_tested) & !is.na(positive_rate),
       avg_positive > 0,
       avg_tested > 0,
       positive_rate > 0
-    ),
-  mapping = aes(
-    x = avg_positive,
-    y = avg_tested,
-    color = positive_rate,
-    text = paste("Country:", Country_Region)
-  )) +
-  geom_point() +
-  scale_x_log10() +
-  scale_y_log10() +
-  labs(
-    x = "Average Daily Positive Cases",
-    y = "Average Daily Quantity of Tests",
-    color = "Positivity Rate"
-  ) +
-  theme_minimal()
+  )
 
-positive_tested_interactive <- ggplotly(positive_tested_chart)
-positive_tested_interactive
+  interactive_plot <- plot_ly(
+    data = daily_positive_tested,
+    x = ~avg_positive,
+    y = ~avg_tested,
+    type = 'scatter',
+    mode = 'markers',
+    marker = list(
+      size = 10,
+      opacity = 0.7, 
+      color = ~positive_rate,
+      colorscale = 'Viridis',
+      colorbar = list(
+        title = 'Positivity Rate'
+      )
+    ),
+    text = ~paste("Country:", Country_Region, 
+                  "<br>Month:", Month,
+                  "<br>Positivity Rate:", round(positive_rate*100, 2), "%",
+                  "<br>Average Daily Cases:", avg_positive,
+                  "<br>Average Daily Tests:", avg_tested),
+    hoverinfo = 'text'
+  )
+
+  interactive_plot <- interactive_plot %>% layout(
+    xaxis = list(
+      type = "log",
+      title = "Average Daily Positive Cases",
+      dtick = 1,
+      tickmode = "array",
+      tickvals = 10^(0:10),
+      ticktext = 10^(0:10)
+    ),
+    yaxis = list(
+      type = "log",
+      title = "Average Daily Quantity of Tests",
+      dtick = 1,
+      tickmode = "array",
+      tickvals = 10^(0:10),
+      ticktext = 10^(0:10)
+    ),
+    title = list(text = "Average Daily Positive Cases vs Quantity of Testing - All Months", font = list(size = 16)),
+    showlegend = FALSE,
+    margin = list(t = 100),
+    autosize = TRUE,
+    height = 600
+  )
+
+buttons <- list()
+
+buttons[[1]] <- list(
+  method = "update",
+  args = list(
+    list(
+      x = list(daily_positive_tested$avg_positive),
+      y = list(daily_positive_tested$avg_tested),
+      text = list(paste("Country:", daily_positive_tested$Country_Region, 
+                         "<br>Month:", daily_positive_tested$Month,
+                         "<br>Positivity Rate:", round(daily_positive_tested$positive_rate*100, 2), "%",
+                         "<br>Average Daily Cases:",daily_positive_tested$avg_positive,
+                         "<br>Average Daily Tests:",daily_positive_tested$avg_tested)),
+      marker = list(
+        color = daily_positive_tested$positive_rate,
+        colorscale = 'Viridis',
+        colorbar = list(
+          title = list(
+            text = 'Positivity Rate'
+          )
+        ),
+        size = 10,
+        opacity = 0.7
+      )
+    ),
+    list(title = "Average Daily Positive Cases vs Quantity of Testing - All Months")
+  ),
+  label = "All Months"
+)
+
+for (i in 1:length(unique_months)) {
+  month_data <- daily_positive_tested %>% filter(Month == unique_months[i])
+  
+  if (nrow(month_data) > 0) {
+    buttons[[i + 1]] <- list(
+      method = "update",
+      args = list(
+        list(
+          x = list(month_data$avg_positive),
+          y = list(month_data$avg_tested),
+          text = list(paste("Country:", month_data$Country_Region, 
+                           "<br>Month:", month_data$Month,
+                           "<br>Positivity Rate:", round(month_data$positive_rate*100, 2), "%",
+                           "<br>Average Daily Cases:", month_data$avg_positive,
+                           "<br>Average Daily Tests:",month_data$avg_tested)),
+          marker = list(
+            color = month_data$positive_rate,
+            colorscale = 'Viridis',
+            colorbar = list(
+              title = list(
+                text = 'Positivity Rate'
+              )
+            ),
+            size = 10,
+            opacity = 0.7
+          )
+        ),
+        list(title = paste("Average Daily Positive Cases vs Quantity of Testing -", unique_months[i]))
+      ),
+      label = unique_months[i]
+    )
+  }
+}
+
+interactive_plot <- interactive_plot %>% layout(
+  updatemenus = list(
+    list(
+      active = 0,
+      buttons = buttons,
+      direction = "down",
+      showactive = TRUE
+    )
+  )
+)
+
+interactive_plot
 ```
 
 ## Column 2 {width="40%"}
