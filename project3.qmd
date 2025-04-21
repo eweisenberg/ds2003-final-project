@@ -11,6 +11,8 @@ library(plotly)
 library(dplyr)
 ```
 
+# Dashboard
+
 ## Column 1 {width="60%"}
 
 ```{r}
@@ -253,4 +255,102 @@ deaths_interactive <- layout(deaths_interactive,
             hovermode = "compare")
 
 deaths_interactive
+```
+
+# About
+
+## Column 1 {width="60%"}
+
+Overview of the dataset:
+
+The dataset we are using for Project 3 is titled “COVID19 Worldwide Testing Data” and found here: <https://www.kaggle.com/datasets/lin0li/covid19testing>. This dataset contains information about the number of positive cases, hospitalizations, and deaths – daily and cumulatively – across different countries between 1/15/2020 and 11/8/2020. The dataset has 12 columns and 27641 rows. However, several rows are incomplete (ex. missing hospital, testing, and death data), and the dataset only includes 100 countries. It is also important to remember that the absence of testing does not mean the absence of COVID-19.
+
+Project goals:
+
+Our project focuses on testing, hospitalizations, and deaths. Specifically, we wanted to answer the questions:
+
+1.  What is the relationship between positivity and testing rates?
+2.  How did hospitalizations as the a percent of the population change across time for each country?
+3.  How did cumulative deaths change across time for each country?
+
+Key insights:
+
+1.  Over time, the number of daily COVID-19 tests increased and then dropped off significantly. The drop off at the end likely is due to less data being gathered.
+2.  Of the 24 countries with valid cumulative death data, the United States has a significantly high death toll.
+3.  There is a weak positive correlation between the total number of tests and the total number of deaths for each country.
+
+## Column 2 {width="40%"}
+
+```{r}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+library(tidyverse)
+```
+
+```{r}
+covid_data <- read_csv("tested_worldwide.csv") %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+```
+
+```{r}
+
+global_tests <- covid_data %>% 
+  group_by(Date) %>% 
+  summarize(total_tests = sum(daily_tested, na.rm = TRUE))
+
+ggplot(global_tests, aes(x = Date, y = total_tests)) +
+  geom_line(color = "#2C3E50", size = 1) +
+  scale_y_continuous(labels = scales:: comma) +
+  labs(
+    title = "Global Daily COVID-19 Tests",
+    x = "Date",
+    y = "Number of Tests"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+top_deaths <- covid_data %>%
+  filter(Province_State == "All States") %>%
+  group_by (Country_Region) %>% 
+  summarize (cum_deaths = max(death, na.rm = TRUE)) %>%
+  arrange(desc(cum_deaths)) %>%
+  slice_head(n = 10)
+
+ggplot(top_deaths, aes(x = reorder(Country_Region, cum_deaths), y = cum_deaths)) +
+  geom_col(fill = "#E74C3C") + 
+  coord_flip() +
+  scale_y_continuous(labels = scales:: comma) +
+  labs(
+    title = "Top 10 Countries by Cumulative COVID-19 Deaths",
+    x = NULL, 
+    y = "Deaths"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+snapshot <- covid_data %>%
+  filter(Province_State == "All States") %>%
+  group_by(Country_Region) %>%
+  summarize(
+    total_tests = max(total_tested, na.rm = TRUE),
+    total_deaths = max(death, na.rm = TRUE)
+  ) %>%
+  filter(total_tests > 0, total_deaths > 0)
+  
+ggplot(snapshot, aes(x = total_tests, y = total_deaths)) +
+  geom_point(color = "#2C3E50", alpha = 0.9, size =2) +
+  scale_x_log10(labels = scales:: comma) +
+  scale_y_log10(labels = scales:: comma) +
+  labs(
+    title = ("Cumulative Tests vs Deaths by Country"),
+    x = "Total Tests (log scale)",
+    y = "Total Deaths (log scale)"
+  ) +
+  theme_minimal()
 ```
