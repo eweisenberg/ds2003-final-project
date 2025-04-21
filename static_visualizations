@@ -1,0 +1,90 @@
+---
+title: "COVID-19 Static Visualizations"
+author: "Tiannah Griffith"
+date: "`r Sys.Date()`"
+format:
+  dashboard: 
+    orientation: columns
+    theme: flatly
+---
+
+```{r}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+library(tidyverse)
+```
+
+```{r}
+covid_data <- read_csv("tested_worldwide.csv") %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+```
+
+## Column 1 {width=60%}
+## Global Daily Tests 
+
+```{r}
+
+global_tests <- covid_data %>% 
+  group_by(Date) %>% 
+  summarize(total_tests = sum(daily_tested, na.rm = TRUE))
+
+ggplot(global_tests, aes(x = Date, y = total_tests)) +
+  geom_line(color = "#2C3E50", size = 1) +
+  scale_y_continuous(labels = scales:: comma) +
+  labs(
+    title = "Global Daily COVID-19 Tests",
+    x = "Date",
+    y = "Number of Tests"
+  ) +
+  theme_minimal()
+```
+
+## Column 2 {width=40%}
+## Top 10 Deaths
+
+```{r}
+top_deaths <- covid_data %>%
+  filter(Province_State == "All States") %>%
+  group_by (Country_Region) %>% 
+  summarize (cum_deaths = max(death, na.rm = TRUE)) %>%
+  arrange(desc(cum_deaths)) %>%
+  slice_head(n = 10)
+
+ggplot(top_deaths, aes(x = reorder(Country_Region, cum_deaths), y = cum_deaths)) +
+  geom_col(fill = "#E74C3C") + 
+  coord_flip() +
+  scale_y_continuous(labels = scales:: comma) +
+  labs(
+    title = "Top 10 Countries by Cumulative COVID-19 Deaths",
+    x = NULL, 
+    y = "Deaths"
+  ) +
+  theme_minimal()
+```
+
+## Tests vs. Deaths by Country 
+```{r}
+snapshot <- covid_data %>%
+  filter(Province_State == "All States") %>%
+  group_by(Country_Region) %>%
+  summarize(
+    total_tests = max(total_tested, na.rm = TRUE),
+    total_deaths = max(death, na.rm = TRUE)
+  ) %>%
+  filter(total_tests > 0, total_deaths > 0)
+  
+ggplot(snapshot, aes(x = total_tests, y = total_deaths)) +
+  geom_point(color = "#2C3E50", alpha = 0.9, size =2) +
+  scale_x_log10(labels = scales:: comma) +
+  scale_y_log10(labels = scales:: comma) +
+  labs(
+    title = ("Cumulative Tests vs Deaths by Country"),
+    x = "Total Tests (log scale)",
+    y = "Total Deaths (log scale)"
+  ) +
+  theme_minimal()
+```
