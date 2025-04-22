@@ -1,0 +1,65 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2820
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 library(plotly)\
+library(dplyr)\
+\
+hospital_data <- read.csv("tested_worldwide.csv") %>%\
+  mutate(\
+    Date = as.Date(Date),\
+    hospitalizedCurr = as.numeric(hospitalizedCurr)\
+  ) %>%\
+  filter(!is.na(hospitalizedCurr)) %>%\
+  group_by(Date, Country_Region) %>%\
+  summarise(current_hospitalized = sum(hospitalizedCurr, na.rm = TRUE), .groups = "drop")\
+\
+population_data <- read.csv("world_population.csv") %>%\
+  select(Country = Country.Territory, Population2020 = X2020.Population) %>%\
+  mutate(Population2020 = as.numeric(gsub(",", "", Population2020)))\
+\
+merged_data <- hospital_data %>%\
+  left_join(population_data, by = c("Country_Region" = "Country")) %>%\
+  filter(!is.na(Population2020)) %>%\
+  mutate(hospitalized_pct = (current_hospitalized / Population2020) * 100) %>%\
+  filter(!Country_Region %in% c("Armenia", "Singapore"))\
+\
+countries <- unique(merged_data$Country_Region)\
+hosp_interactive <- plot_ly()\
+\
+for (country in countries) \{\
+  country_data <- merged_data %>% filter(Country_Region == country)\
+  hosp_interactive <- hosp_interactive %>%\
+    add_trace(\
+      x = country_data$Date,\
+      y = country_data$hospitalized_pct,\
+      type = "scatter",\
+      mode = "lines+markers",\
+      name = country\
+    )\
+\}\
+\
+hosp_interactive <- hosp_interactive %>%\
+  layout(\
+    title = "Percent of Population Hospitalized Over Time",\
+    xaxis = list(\
+      title = "Date",\
+      type = "date",\
+      rangeslider = list(visible = TRUE),  # <- This adds the slider!\
+      rangeselector = list(\
+        buttons = list(\
+          list(count = 1, label = "1m", step = "month", stepmode = "backward"),\
+          list(count = 3, label = "3m", step = "month", stepmode = "backward"),\
+          list(count = 6, label = "6m", step = "month", stepmode = "backward"),\
+          list(step = "all")\
+        )\
+      )\
+    ),\
+    yaxis = list(title = "Hospitalizations (Percent of Population)"),\
+    hovermode = "compare"\
+  )\
+\
+hosp_interactive}
